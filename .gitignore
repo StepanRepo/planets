@@ -1,3 +1,8 @@
+# to not to push calculation results to github
 chains*/*
 modeled/chains*/*
 report/*
+*.pdf
+
+# to prevent pushing venv to github
+venv
