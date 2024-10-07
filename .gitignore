@@ -4,5 +4,9 @@ modeled/chains*/*
 report/*
 *.pdf
 
+# skip vim's temporal files
+.*.swp
+
 # to prevent pushing venv to github
 venv
+__pycache__

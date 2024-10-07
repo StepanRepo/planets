@@ -1,4 +1,4 @@
-#!/bin/python
+#!venv/bin/python
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -74,18 +74,20 @@ if __name__ == "__main__":
     print("Psr was readed")
 
     every = 10
+    every_chain = 10
+
+    nsample = 30_000
+    burnin = 10_000
+
     nmodes = 20
-    burnin = 2000
 
     t = psr.toas()[::every]
     x = psr.residuals()[::every]
     errs = psr.toaerrs[::every] * 1e-6
     N = psr.stoas / every
 
-
-
-
-
+    i = np.argsort(t)
+    t, x, errs = t[i], x[i], errs[i]
 
 
     T = t[-1] - t[0]
@@ -95,12 +97,16 @@ if __name__ == "__main__":
     F, freqs = fourierdesignmatrix(t, nmodes)
     M = psr.designmatrix()[::every, :]
 
+    M = M[i, :]
+    for k in range(len(M[0, :])):
+        M[:, k] /= np.max(np.abs(M[:, k]))
+
 
     labels = [r'log EFAC', r'log EQUAD', r'$\log A$', r'$\gamma$']
 
 
-    left = np.array([-1, -10, -20, 0])
-    right = np.array([1, -1,  -10, 7])
+    left = np.array([-1, -10, -25, 0])
+    right = np.array([6, -1,  -10, 7])
 
 
     # PTMCMC SAMPLING
@@ -119,19 +125,17 @@ if __name__ == "__main__":
                      logpargs=[left, right])
 
 
-    sampler.sample(p0, 50_000, burn=10_000,\
-            thin=10, covUpdate=10_000, isave = 10,\
-            Tmin = 1, Tmax = 1e8, writeHotChains = True)
+    sampler.sample(p0, nsample, burn=10_000,\
+            thin=1, covUpdate=10_000, isave = 1,\
+            Tmin = 1, Tmax = 1e20, writeHotChains = True)
 
 
 
 ## calculate model evidence
 #    files = glob("chains0/chain*")
-#    betas = np.empty(len(files)+1)
+#    betas = np.empty(len(files))
 #    lls = np.empty_like(betas)
 #
-#    betas[0] = 0
-#    lls[0] = 0
 #
 #    for i, file in enumerate(files):
 #        temp = file.split("_")[1].split(".")
@@ -139,8 +143,8 @@ if __name__ == "__main__":
 #
 #        chain = np.loadtxt(file)[burnin:, -3]
 #
-#        betas[i+1] = 1/temp
-#        lls[i+1] = np.mean(chain)
+#        betas[i] = 1/temp
+#        lls[i] = np.mean(chain)
 #
 #
 #    i = np.argsort(betas)
@@ -159,7 +163,7 @@ if __name__ == "__main__":
     # Load the chian into Chainconsumer
 
     
-    chain_array = np.loadtxt('chains0/chain_1.txt')[burnin:, :-3]
+    chain_array = np.loadtxt('chains0/chain_1.txt')[burnin::every_chain, :-3]
     chain = pd.DataFrame(chain_array, \
             columns = labels + ["log_posterior"])
     chain = Chain(samples = chain, \
@@ -179,9 +183,10 @@ if __name__ == "__main__":
 
 
     # plot chains traces
-    fig = consumer.plotter.plot_walks(\
-            convolve=None, figsize = None,\
-            plot_weights = False)
+    if nsample/every_chain < 15_000:
+        fig = consumer.plotter.plot_walks(\
+                convolve=None, figsize = None,\
+                plot_weights = False)
 
     # plot triangle plot
     fig = consumer.plotter.plot()

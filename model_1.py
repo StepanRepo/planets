@@ -1,4 +1,4 @@
-#!/bin/python
+#!venv/bin/python
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -118,8 +118,12 @@ if __name__ == "__main__":
     print("Psr was readed")
 
     every = 10
+    every_chain = 10
+
+    nsample = 30_000
+    burnin = 10_000
+
     nmodes = 20
-    burnin = 4000
 
     t = psr.toas()[::every]
     x = psr.residuals()[::every]
@@ -129,7 +133,8 @@ if __name__ == "__main__":
     alpha = psr["RAJ"].val
     delta = psr["DECJ"].val
 
-
+    i = np.argsort(t)
+    t, x, errs = t[i], x[i], errs[i]
 
 
     T = t[-1] - t[0]
@@ -139,11 +144,16 @@ if __name__ == "__main__":
     #F, freqs = fourierdesignmatrix(t, nmodes)
     M = psr.designmatrix()[::every, :]
 
+    M = M[i, :]
+    for k in range(len(M[0, :])):
+        M[:, k] /= np.max(np.abs(M[:, k]))
+
+
     labels = ["A", "ECC", "PB", "OM", "T0", r'log EFAC', r'log EQUAD']
 
 
-    left = np.array([1e-3,   0, dt,      0,  0, -1, -10], dtype = np.float64)
-    right = np.array([1e-1, .9, T/2, np.pi, 2000, 1, -1], dtype = np.float64)
+    left = np.array([1e-3,   0, dt,      0,  t[0] + 1000, -1, -10], dtype = np.float64)
+    right = np.array([1e-1, .9, T/2, np.pi, t[0] + 5000, 1, -1], dtype = np.float64)
 
     # PTMCMC SAMPLING
 
@@ -201,7 +211,7 @@ if __name__ == "__main__":
     # Load the chian into Chainconsumer
 
     
-    chain_array = np.loadtxt('chains0/chain_1.txt')[burnin:, :-3]
+    chain_array = np.loadtxt('chains0/chain_1.txt')[burnin::every_chain, :-3]
     chain = pd.DataFrame(chain_array, \
             columns = labels + ["log_posterior"])
     chain = Chain(samples = chain, \
@@ -221,9 +231,10 @@ if __name__ == "__main__":
 
 
     # plot chains traces
-    fig = consumer.plotter.plot_walks(\
-            convolve=None, figsize = None,\
-            plot_weights = False)
+    if nsample/every_chain < 15_000:
+        fig = consumer.plotter.plot_walks(\
+                convolve=None, figsize = None,\
+                plot_weights = False)
 
     # plot triangle plot
     fig = consumer.plotter.plot()
